@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation Sindoor: A Tale of Valor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #000; 
+            color: #fff; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        #container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        #infoPanel { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            padding: 20px; 
+            background: rgba(10, 20, 40, 0.85); 
+            border: 1px solid #FF9933;
+            border-radius: 12px; 
+            max-width: 400px; 
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 100; 
+            box-shadow: 0 0 15px rgba(255, 153, 51, 0.5);
+        }
+        #sceneTitle { 
+            font-size: 26px; 
+            font-weight: bold; 
+            margin-bottom: 15px; 
+            color: #FF9933; /* Saffron */
+            border-bottom: 2px solid #FF9933;
+            padding-bottom: 10px;
+        }
+        #sceneText { 
+            font-size: 16px; 
+            line-height: 1.6; 
+            margin-bottom: 10px;
+        }
+        .text-paragraph {
+            margin-bottom: 10px;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInPara 0.5s forwards;
+        }
+        @keyframes fadeInPara {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        #twitterFeed { 
+            margin-top: 20px; 
+            border-top: 1px solid #557799; 
+            padding-top: 15px; 
+        }
+        .tweet { 
+            font-size: 14px; 
+            margin-bottom: 12px; 
+            padding: 10px; 
+            background: rgba(30, 50, 80, 0.7); 
+            border-radius: 6px; 
+            border-left: 3px solid #FF9933;
+        }
+        .tweet strong { color: #66AADD; } /* Lighter blue for user names */
+        .tweet .sentiment-pride { color: #4CAF50; font-weight: bold; } /* Green for pride */
+        .tweet .sentiment-concern { color: #FFC107; font-weight: bold; } /* Amber for concern */
+        .tweet .sentiment-critical { color: #F44336; font-weight: bold; } /* Red for critical */
+        
+        #nextButton { 
+            position: absolute; 
+            bottom: 30px; 
+            right: 30px; 
+            padding: 12px 25px; 
+            background: linear-gradient(145deg, #FF9933, #E67E22); 
+            color: #000; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 18px; 
+            font-weight: bold;
+            cursor: pointer; 
+            z-index: 100; 
+            box-shadow: 0 0 10px rgba(255, 153, 51, 0.7);
+            transition: background 0.3s, transform 0.1s;
+        }
+        #nextButton:hover {
+            background: linear-gradient(145deg, #E67E22, #D35400);
+            transform: scale(1.05);
+        }
+        #nextButton:disabled {
+            background: #555;
+            color: #999;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        #statsPanel { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            padding: 15px; 
+            background: rgba(10, 20, 40, 0.85); 
+            border: 1px solid #138808; /* Green */
+            border-radius: 8px; 
+            z-index: 100; 
+            display: none;
+            box-shadow: 0 0 15px rgba(19, 136, 8, 0.5);
+        }
+        .statItem { font-size: 15px; margin-bottom: 8px; color: #FFFFFF; }
+        .statItem strong { color: #FF9933; }
+
+        #strikeMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+            font-weight: bold;
+            color: #FFD700; /* Gold */
+            padding: 15px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 10px;
+            z-index: 101;
+            display: none;
+            text-shadow: 0 0 5px #000;
+        }
+        #canvasContainer {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="canvasContainer"></div>
+
+        <div id="infoPanel">
+            <div id="sceneTitle"></div>
+            <div id="sceneText"></div>
+            <div id="twitterFeed" style="display:none;"></div>
+        </div>
+
+        <div id="statsPanel">
+            <div class="statItem">Rupee vs USD: <strong>84.66 (Dip)</strong></div>
+            <div class="statItem">Pakistan Stock Market: <strong>-5.5%</strong></div>
+            <div class="statItem">#OperationSindoor Mentions: <strong>1.2M+</strong></div>
+        </div>
+
+        <div id="strikeMessage"></div>
+
+        <button id="nextButton">Start Simulation</button>
+    </div>
+
+    <script>
+        let scene, camera, renderer;
+        let currentSceneIndex = -1;
+        const scenesData = [];
+        let jets = [], targets = [], explosions = [];
+        let strikeAnimationData = {
+            targetsHit: 0,
+            totalTargets: 9,
+            jetSpeed: 0.05, // Adjusted speed
+            currentTargetIndex: 0,
+            jetsLaunched: 0,
+            phase: 'idle', // idle, jets_moving, strike_impact, all_cleared
+            strikeMessageTimeout: null
+        };
+
+        const infoPanel = document.getElementById('infoPanel');
+        const sceneTitleEl = document.getElementById('sceneTitle');
+        const sceneTextEl = document.getElementById('sceneText');
+        const twitterFeedEl = document.getElementById('twitterFeed');
+        const statsPanelEl = document.getElementById('statsPanel');
+        const nextButton = document.getElementById('nextButton');
+        const strikeMessageEl = document.getElementById('strikeMessage');
+        const canvasContainer = document.getElementById('canvasContainer');
+
+        // --- SCENE DEFINITIONS ---
+        scenesData.push({
+            title: "Operation Sindoor: A Tale of Valor",
+            text: ["Welcome. This simulation recounts India's decisive response to terror, known as #OperationSindoor.", "Click 'Begin Story' to witness this tale of valor."],
+            buttonText: "Begin Story",
+            setup: () => {
+                // Initial empty scene or with a subtle background
+                camera.position.z = 5;
+                const starGeometry = new THREE.BufferGeometry();
+                const starMaterial = new THREE.PointsMaterial({ color: 0xaaaaaa, size: 0.02 });
+                const starVertices = [];
+                for (let i = 0; i < 5000; i++) {
+                    const x = (Math.random() - 0.5) * 200;
+                    const y = (Math.random() - 0.5) * 200;
+                    const z = (Math.random() - 0.5) * 200;
+                    starVertices.push(x, y, z);
+                }
+                starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+                const stars = new THREE.Points(starGeometry, starMaterial);
+                scene.add(stars);
+            }
+        });
+
+        scenesData.push({
+            title: "Pahalgam Attack: April 22, 2025",
+            text: [
+                "A date seared into memory. A cowardly act of terror strikes Pahalgam, a peaceful haven.",
+                "25 innocent Indian civilians and one Nepali national tragically lose their lives at the hands of Lashkar-e-Taiba, Jaish-e-Mohammed, and Hizbul Mujahideen.",
+                "The nation is engulfed in grief. Tears fall, but India's resolve to protect its people and deliver justice only strengthens."
+            ],
+            buttonText: "India's Resolve",
+            setup: () => {
+                // Somber visuals. Perhaps a dark plane with a single point of light.
+                scene.background = new THREE.Color(0x101020); // Dark blue/purple
+                // Add a subtle particle effect for solemnity if desired
+            }
+        });
+
+        scenesData.push({
+            title: "The Decision: Operation Sindoor",
+            text: [
+                "India will not stand idle. A swift, decisive, and righteous response is meticulously planned: #OperationSindoor.",
+                "Named for 'Sindoor' – the sacred vermilion powder, a profound symbol of marital honor, and in this context, a vow to avenge the widows of Pahalgam.",
+                "The mission: Neutralize nine key terrorist launchpads and training camps across Pakistan and PoK.",
+                "The rules of engagement are clear: target only male terrorists. Spare women, children, and civilians. Uphold Dharma, even in retribution."
+            ],
+            buttonText: "Launch Operation",
+            setup: () => {
+                scene.background = new THREE.Color(0x102030); // Slightly less dark blue
+                // Could show an abstract map or strategic elements appearing.
+                const indiaGeo = new THREE.SphereGeometry(1.5, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2); // Hemisphere
+                const indiaMat = new THREE.MeshPhongMaterial({ color: 0x004488, emissive: 0x002244 });
+                const indiaMesh = new THREE.Mesh(indiaGeo, indiaMat);
+                indiaMesh.rotation.x = -Math.PI / 4;
+                scene.add(indiaMesh);
+                indiaMesh.name = "map_element";
+            }
+        });
+
+        scenesData.push({
+            title: "The Strike: May 7, 2025 - #OperationSindoor",
+            text: [
+                "Under the cover of night, Indian Air Force jets streak across the border. Their mission: surgical precision, maximum impact on terror infrastructure.",
+                "Nine critical terrorist sites are targeted. The terrorists spared women in Pahalgam but widowed many; India's response targets the perpetrators.",
+                "Pilots navigate hostile territory, their courage unwavering. The nation holds its breath."
+            ],
+            buttonText: "Executing Strikes...",
+            setup: () => {
+                scene.background = new THREE.Color(0x050510); // Very dark for night strikes
+                // Setup jets and targets
+                const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 0.8, metalness: 0.2 });
+                const groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), groundMaterial);
+                groundPlane.rotation.x = -Math.PI / 2;
+                groundPlane.position.y = -5;
+                groundPlane.name = "ground";
+                scene.add(groundPlane);
+
+                camera.position.set(0, 15, 25); // Elevated view for strikes
+                camera.lookAt(0, 0, 0);
+
+                const targetMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0x550000 });
+                for (let i = 0; i < strikeAnimationData.totalTargets; i++) {
+                    const target = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 16), targetMaterial);
+                    target.position.set(
+                        (Math.random() - 0.5) * 30,
+                        -4.5,
+                        (Math.random() - 0.5) * 30 - 5 // Place targets further away
+                    );
+                    target.name = `target_${i}`;
+                    targets.push(target);
+                    scene.add(target);
+                }
+                strikeAnimationData.phase = 'jets_launching';
+                strikeAnimationData.targetsHit = 0;
+                strikeAnimationData.currentTargetIndex = 0;
+                strikeAnimationData.jetsLaunched = 0;
+                nextButton.disabled = true; // Disable button during animation
+            },
+            animate: strikeSceneAnimate,
+            cleanup: () => { // Ensure ground and specific strike elements are removed
+                const ground = scene.getObjectByName("ground");
+                if (ground) scene.remove(ground);
+                jets.forEach(j => scene.remove(j));
+                jets = [];
+                targets.forEach(t => scene.remove(t));
+                targets = [];
+                explosions.forEach(e => e.dispose()); // Assuming explosions have a dispose method
+                explosions = [];
+                strikeAnimationData.phase = 'idle';
+                camera.position.set(0,0,5); // Reset camera for other scenes
+                camera.lookAt(0,0,0);
+            }
+        });
+
+        scenesData.push({
+            title: "The Echoes: Nation & World React",
+            text: [
+                "SUCCESS! All targets neutralized. #OperationSindoor trends worldwide with over 1.2 million mentions! Visuals of smoking terror camps fill the screens.",
+                "A wave of national pride sweeps India. 70% of online posts laud the Indian Army and PM Modi for the 'slap on terror'.",
+                "Maharashtra CM Devendra Fadnavis praises 'surgical precision'. Union Minister Amit Shah tweets emojis of biceps and tricolors.",
+            ],
+            buttonText: "Global Impact",
+            setup: () => {
+                scene.background = new THREE.Color(0x1a365d); // Deep blue, sense of global scale
+                // Display simulated Twitter feed
+                twitterFeedEl.style.display = 'block';
+                populateTwitterFeed([
+                    { user: "ProudPatriot🇮🇳", text: "INCREDIBLE! #OperationSindoor executed FLAWLESSLY! Our forces make us proud! Jai Hind! A new, strong India! 💪", sentiment: "pride" },
+                    { user: "AnalystGlobal", text: "India's airstrikes spark international debate. Rupee at 84.66 vs USD. Pak stock market crashes 5.5%. Calls for diplomacy rise. #Geopolitics", sentiment: "neutral" },
+                    { user: "PeaceSeeker25", text: "While understanding the retaliation, worried about escalation. Pakistan reports ceasefire violations. Hope cooler heads prevail. 🙏 #OperationSindoor", sentiment: "concern" },
+                    { user: "Devendra_Fadnavis_Official", text: "Salute the Indian Air Force for their surgical precision in #OperationSindoor. India will not tolerate terror on its soil. #NewIndia", sentiment: "pride" },
+                ]);
+                statsPanelEl.style.display = 'block';
+
+                // Tricolor background or flag element
+                const flagMaterial = new THREE.ShaderMaterial({
+                    uniforms: { time: { value: 0 } },
+                    vertexShader: `
+                        varying vec2 vUv;
+                        void main() {
+                            vUv = uv;
+                            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                        }
+                    `,
+                    fragmentShader: `
+                        varying vec2 vUv;
+                        uniform float time;
+                        void main() {
+                            vec3 saffron = vec3(1.0, 0.6, 0.2); // FF9933
+                            vec3 white = vec3(1.0, 1.0, 1.0);
+                            vec3 green = vec3(0.07, 0.53, 0.03); // 138808
+                            
+                            float y = vUv.y + sin(vUv.x * 10.0 + time * 2.0) * 0.03; // Wave effect
+                            
+                            vec3 color = white;
+                            if (y > 0.66) color = saffron;
+                            else if (y < 0.33) color = green;
+                            
+                            // Ashoka Chakra (simplified)
+                            float dist = distance(vUv, vec2(0.5, 0.5));
+                            if (y > 0.33 && y < 0.66 && dist < 0.15 && dist > 0.13) {
+                                color = vec3(0.0, 0.0, 0.5); // Navy blue
+                            }
+                             if (y > 0.33 && y < 0.66 && dist < 0.02) {
+                                color = vec3(0.0, 0.0, 0.5); // Navy blue
+                            }
+
+
+                            gl_FragColor = vec4(color, 1.0);
+                        }
+                    `
+                });
+                const flagPlane = new THREE.Mesh(new THREE.PlaneGeometry(10, 6), flagMaterial);
+                flagPlane.position.z = -2; // Behind text panels
+                flagPlane.name = "animated_flag";
+                scene.add(flagPlane);
+            },
+            animate: (time) => {
+                const flag = scene.getObjectByName("animated_flag");
+                if (flag) flag.material.uniforms.time.value = time * 0.001;
+            },
+            cleanup: () => {
+                 const flag = scene.getObjectByName("animated_flag");
+                 if(flag) scene.remove(flag);
+            }
+        });
+
+        scenesData.push({
+            title: "Critiques and Concerns",
+            text: [
+                "However, not all voices joined the chorus of celebration.",
+                "A minority (10%) offered feminist critiques, questioning the patriarchal undertones of the name 'Sindoor', arguing it frames women primarily as widows rather than active agents.",
+                "Others dismissed the operation as 'tokenism' or a 'Modi stunt', demanding a more comprehensive long-term strategy against terror.",
+                "Concerns about escalation persisted, with Pakistan's propaganda machine churning out counter-narratives and reports of ceasefire violations along the LoC."
+            ],
+            buttonText: "India's Unwavering Message",
+            setup: () => {
+                twitterFeedEl.style.display = 'block'; // Keep twitter feed
+                populateTwitterFeed([ // Add critical tweets
+                    { user: "FeministVoice", text: "Why #OperationSindoor? Is a woman's honor only tied to her marital status? This naming is patriarchal and regressive. #GenderCritique", sentiment: "critical" },
+                    { user: "StrategicMind", text: "Good strike, but what's the long game? #OperationSindoor feels like Operation Selfie - looks cool, but does it change fundamental realities? Need strategy, not just spectacle.", sentiment: "critical" },
+                    { user: "GlobalObserver", text: "Qatar and other nations urge restraint. The international community is watching closely. #DiplomacyFirst", sentiment: "concern" }
+                ]);
+                 statsPanelEl.style.display = 'block';
+            },
+            cleanup: () => {
+                twitterFeedEl.innerHTML = ''; // Clear previous tweets before new ones
+                twitterFeedEl.style.display = 'none';
+                statsPanelEl.style.display = 'none';
+            }
+        });
+
+        scenesData.push({
+            title: "India's Message: Valor and Vigilance",
+            text: [
+                "Despite diverse reactions, #OperationSindoor delivered a powerful message: India will not hesitate to act decisively to protect its sovereignty and its citizens.",
+                "It was a testament to the valor of the Indian Armed Forces, a high-density tale of courage that resonated across the nation and the world.",
+                "The skies were painted red with justice. While debates continue, India stands united and vigilant against the scourge of terrorism.",
+                "JAI HIND! 🇮🇳"
+            ],
+            buttonText: "End Simulation",
+            setup: () => {
+                scene.background = new THREE.Color(0x000000); // Black
+                // Display a large, prominent Ashoka Chakra or similar symbol of national pride
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.load('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDgwIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI4IiBmaWxsPSIjMDAwMDgwIi8+PGcgc3Ryb2tlPSIjMDAwMDgwIiBzdHJva2Utd2lkdGg9IjIiPjxsaW5lIHgxPSI1MCIgeTE9IjUwIiB4Mj0iNTAiIHkyPSI1Ii8+PGxpbmUgeDE9IjUwIiB5MT0iNTAiIHgyPSI1MCIgeTI9Ijk1Ii8+PGxpbmUgeDE9IjUwIiB5MT0iNTAiIHgyPSI1IiB5Mj0iNTAiLz48bGluZSB4MT0iNTAiIHkxPSI1MCIgeDI9Ijk1IiB5Mj0iNTAiLz48bGluZSB4MT0iNTAiIHkxPSI1MCIgeDI9Ijc4LjMiIHkyPSIxNS41Ii8+PGxpbmUgeDE9IjUwIiB5MT0iNTAiIHgyPSIyMS43IiB5Mj0iODQuNSIvPjxsaW5lIHgxPSI1MCIgeTE9IjUwIiB4Mj0iODQuNSIgeTI9IjIxLjciLz48bGluZSB4MT0iNTAiIHkxPSI1MCIgeDI9IjE1LjUiIHkyPSI3OC4zIi8+PGxpbmUgeDE9IjUwIiB5MT0iNTAiIHgyPSI5Mi40IiB5Mj0iMzUuMiIvPjxsaW5lIHgxPSI1MCIgeTE9IjUwIiB4Mj0iNy42IiB5Mj0iNjQuOCIvPjxsaW5lIHgxPSI1MCIgeTE9IjUwIiB4Mj0iNjQuOCIgeTI9IjkuMiIvPjxsaW5lIHgxPSI1MCIgeTE9IjUwIiB4Mj0iMzUuMiIgeTI9IjkxLjYiLz48L2c+PC9zdmc+', (texture) => {
+                    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+                    const geometry = new THREE.PlaneGeometry(5, 5);
+                    const chakra = new THREE.Mesh(geometry, material);
+                    chakra.name = "chakra_final";
+                    scene.add(chakra);
+                });
+            },
+            cleanup: () => {
+                const chakra = scene.getObjectByName("chakra_final");
+                if(chakra) scene.remove(chakra);
+            }
+        });
+
+        // --- INITIALIZATION AND MAIN LOOP ---
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            canvasContainer.appendChild(renderer.domElement);
+            
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7.5);
+            scene.add(directionalLight);
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize, false);
+            nextButton.addEventListener('click', loadNextScene);
+
+            loadNextScene(); // Load the initial introductory scene
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        let paragraphTimeout;
+        function displayTextSequentially(paragraphs, index = 0) {
+            if (index < paragraphs.length) {
+                const p = document.createElement('p');
+                p.className = 'text-paragraph';
+                p.textContent = paragraphs[index];
+                p.style.animationDelay = `${index * 0.1}s`; // Stagger appearance
+                sceneTextEl.appendChild(p);
+                paragraphTimeout = setTimeout(() => displayTextSequentially(paragraphs, index + 1), 2000); // Adjust delay as needed
+            } else {
+                 if (scenesData[currentSceneIndex].animate || strikeAnimationData.phase !== 'idle') {
+                    // If there's an animation scene, button might be controlled by animation end
+                 } else {
+                    nextButton.disabled = false;
+                 }
+            }
+        }
+
+        function loadNextScene() {
+            clearTimeout(paragraphTimeout); // Clear any pending paragraph additions
+            nextButton.disabled = true; // Disable button until text is loaded or animation starts
+
+            // Cleanup previous scene's specific 3D objects if a cleanup function exists
+            if (currentSceneIndex >= 0 && scenesData[currentSceneIndex].cleanup) {
+                scenesData[currentSceneIndex].cleanup();
+            }
+             // Clear common 3D elements not specific to a scene (like general stars)
+            const objectsToRemove = [];
+            scene.children.forEach(child => {
+                if (child.type === "Points" || child.name === "map_element" || child.name === "chakra_final" || child.name === "animated_flag" || child.name === "ground") {
+                    objectsToRemove.push(child);
+                } else if (child.name && (child.name.startsWith("jet_") || child.name.startsWith("target_"))) {
+                    objectsToRemove.push(child);
+                }
+            });
+            objectsToRemove.forEach(obj => scene.remove(obj));
+            jets = []; targets = []; explosions = [];
+
+
+            currentSceneIndex++;
+            if (currentSceneIndex >= scenesData.length) {
+                currentSceneIndex = 0; // Loop back or end simulation
+                // For now, let's restart
+            }
+
+            const currentSceneData = scenesData[currentSceneIndex];
+
+            sceneTitleEl.textContent = currentSceneData.title;
+            sceneTextEl.innerHTML = ''; // Clear previous text
+            
+            displayTextSequentially(currentSceneData.text);
+
+            nextButton.textContent = currentSceneData.buttonText;
+
+            // Hide/show panels by default
+            twitterFeedEl.style.display = 'none';
+            twitterFeedEl.innerHTML = ''; // Clear old tweets
+            statsPanelEl.style.display = 'none';
+            strikeMessageEl.style.display = 'none';
+
+            if (currentSceneData.setup) {
+                currentSceneData.setup();
+            }
+             // If it's not an animation scene and not the strike scene specifically, enable button after a delay
+            if (!currentSceneData.animate && currentSceneIndex !== 3) { // Scene 3 is strike scene
+                 setTimeout(() => { if(strikeAnimationData.phase === 'idle') nextButton.disabled = false; }, currentSceneData.text.length * 2000 + 500);
+            } else if (currentSceneIndex === 3) { // Strike scene
+                // Button is handled by strikeSceneAnimate
+            } else {
+                // For scenes with their own animate, they might control the button
+                nextButton.disabled = false; 
+            }
+
+
+            // Reset strike animation data if not in strike scene
+            if (currentSceneIndex !== 3) {
+                 strikeAnimationData.phase = 'idle';
+                 strikeAnimationData.targetsHit = 0;
+                 strikeAnimationData.currentTargetIndex = 0;
+                 strikeAnimationData.jetsLaunched = 0;
+            }
+             if(currentSceneData.buttonText === "End Simulation"){
+                nextButton.onclick = () => window.location.reload();
+            } else {
+                nextButton.onclick = loadNextScene;
+            }
+        }
+
+        function populateTwitterFeed(tweets) {
+            twitterFeedEl.innerHTML = ''; // Clear existing tweets
+            tweets.forEach(tweetData => {
+                const tweetDiv = document.createElement('div');
+                tweetDiv.className = 'tweet';
+                let sentimentClass = '';
+                if (tweetData.sentiment === 'pride') sentimentClass = 'sentiment-pride';
+                else if (tweetData.sentiment === 'concern') sentimentClass = 'sentiment-concern';
+                else if (tweetData.sentiment === 'critical') sentimentClass = 'sentiment-critical';
+
+                tweetDiv.innerHTML = `<strong>${tweetData.user}:</strong> ${tweetData.text} ${sentimentClass ? `<span class="${sentimentClass}">(${tweetData.sentiment.toUpperCase()})</span>` : ''}`;
+                twitterFeedEl.appendChild(tweetDiv);
+            });
+        }
+        
+        function createJet() {
+            // Simple jet: elongated pyramid (tetrahedron) or cone
+            const jetBodyGeo = new THREE.ConeGeometry(0.2, 1.5, 4); // radius, height, segments
+            jetBodyGeo.rotateX(Math.PI / 2); // Point forward
+            const jetMaterial = new THREE.MeshPhongMaterial({ color: 0x777788, emissive:0x111122 });
+            const jetMesh = new THREE.Mesh(jetBodyGeo, jetMaterial);
+            
+            // Simple wings
+            const wingShape = new THREE.Shape();
+            wingShape.moveTo(0, 0);
+            wingShape.lineTo(1, 0.3); // Swept back
+            wingShape.lineTo(1, -0.3);
+            wingShape.lineTo(0,0);
+            const wingGeo = new THREE.ShapeGeometry(wingShape);
+            const wingMat = new THREE.MeshBasicMaterial({ color: 0x555566, side: THREE.DoubleSide });
+            
+            const leftWing = new THREE.Mesh(wingGeo, wingMat);
+            leftWing.scale.set(1.5,1.5,1.5);
+            leftWing.rotation.y = Math.PI / 2;
+            leftWing.position.set(0,0,0.5); // Attach to body side
+
+            const rightWing = leftWing.clone();
+            rightWing.position.set(0,0,-0.5);
+            rightWing.rotation.z = Math.PI; // Flip it
+
+            const jetGroup = new THREE.Group();
+            jetGroup.add(jetMesh);
+            //jetGroup.add(leftWing); // Wings are a bit tricky to align with cone, simplifying for now
+            //jetGroup.add(rightWing);
+
+            return jetGroup;
+        }
+
+        function createExplosion(position) {
+            const explosion = {
+                particles: [],
+                maxLife: 1.5, // seconds
+                startTime: clock.getElapsedTime(),
+                origin: position.clone()
+            };
+
+            const particleCount = 50 + Math.random() * 50;
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.5,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                sizeAttenuation: true
+            });
+
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const colors = [];
+            const velocities = [];
+
+            const colorChoices = [new THREE.Color(0xffd700), new THREE.Color(0xffa500), new THREE.Color(0xff4500), new THREE.Color(0x808080)];
+
+            for (let i = 0; i < particleCount; i++) {
+                vertices.push(0,0,0); // Start at origin
+                
+                const color = colorChoices[Math.floor(Math.random() * colorChoices.length)];
+                colors.push(color.r, color.g, color.b);
+
+                const phi = Math.random() * Math.PI * 2;
+                const theta = Math.random() * Math.PI;
+                const speed = Math.random() * 5 + 2; // Slower speed
+                velocities.push(
+                    speed * Math.sin(theta) * Math.cos(phi),
+                    speed * Math.sin(theta) * Math.sin(phi),
+                    speed * Math.cos(theta)
+                );
+            }
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const points = new THREE.Points(geometry, particleMaterial);
+            points.position.copy(position);
+            scene.add(points);
+            
+            explosion.mesh = points;
+            explosion.velocities = velocities;
+            explosion.geometry = geometry; // To update positions
+
+            explosion.dispose = () => {
+                scene.remove(points);
+                geometry.dispose();
+                particleMaterial.dispose();
+            }
+            explosions.push(explosion);
+        }
+        
+        const clock = new THREE.Clock();
+
+        function strikeSceneAnimate() {
+            const deltaTime = clock.getDelta(); // Use delta for smoother animation
+
+            // Update explosions
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const expl = explosions[i];
+                const elapsedTime = clock.getElapsedTime() - expl.startTime;
+                const lifeRatio = elapsedTime / expl.maxLife;
+
+                if (lifeRatio > 1) {
+                    expl.dispose();
+                    explosions.splice(i, 1);
+                    continue;
+                }
+
+                const positions = expl.geometry.attributes.position.array;
+                for (let j = 0; j < positions.length / 3; j++) {
+                    positions[j * 3] += expl.velocities[j * 3] * deltaTime * (1 - lifeRatio); // Slow down over time
+                    positions[j * 3 + 1] += expl.velocities[j * 3 + 1] * deltaTime * (1 - lifeRatio);
+                    positions[j * 3 + 2] += expl.velocities[j * 3 + 2] * deltaTime * (1 - lifeRatio);
+                }
+                expl.geometry.attributes.position.needsUpdate = true;
+                expl.mesh.material.opacity = 1 - lifeRatio;
+                expl.mesh.material.size = 0.5 * (1-lifeRatio) + 0.1; // Shrink over time
+            }
+
+
+            if (strikeAnimationData.phase === 'jets_launching') {
+                if (strikeAnimationData.jetsLaunched < strikeAnimationData.totalTargets && jets.length < 3) { // Launch up to 3 jets at a time
+                    const jet = createJet();
+                    jet.position.set((Math.random() - 0.5) * 10, 5, 20); // Start from player side
+                    jet.lookAt(targets[strikeAnimationData.jetsLaunched].position);
+                    jet.name = `jet_${strikeAnimationData.jetsLaunched}`;
+                    jets.push({mesh: jet, targetIndex: strikeAnimationData.jetsLaunched});
+                    scene.add(jet);
+                    strikeAnimationData.jetsLaunched++;
+                }
+                if (strikeAnimationData.jetsLaunched >= strikeAnimationData.totalTargets && jets.length === 0) {
+                    strikeAnimationData.phase = 'all_cleared'; // If all launched and cleared immediately
+                } else if (jets.length > 0) {
+                     strikeAnimationData.phase = 'jets_moving';
+                }
+            }
+            
+            if (strikeAnimationData.phase === 'jets_moving') {
+                for (let i = jets.length - 1; i >= 0; i--) {
+                    const jetObj = jets[i];
+                    const jetMesh = jetObj.mesh;
+                    const targetMesh = targets[jetObj.targetIndex];
+
+                    if (!targetMesh || !targetMesh.visible) { // Target already hit by another jet or gone
+                         scene.remove(jetMesh);
+                         jets.splice(i,1);
+                         continue;
+                    }
+
+                    const direction = new THREE.Vector3().subVectors(targetMesh.position, jetMesh.position).normalize();
+                    jetMesh.position.addScaledVector(direction, strikeAnimationData.jetSpeed * 100 * deltaTime); // Adjusted for delta time
+                    jetMesh.lookAt(targetMesh.position);
+
+                    if (jetMesh.position.distanceTo(targetMesh.position) < 1.5) { // Impact
+                        createExplosion(targetMesh.position);
+                        targetMesh.visible = false; // "Destroy" target
+                        scene.remove(jetMesh); // Jet disappears after strike
+                        jets.splice(i,1);
+                        
+                        strikeAnimationData.targetsHit++;
+                        strikeMessageEl.textContent = `Target ${strikeAnimationData.targetsHit}/${strikeAnimationData.totalTargets} Neutralized!`;
+                        strikeMessageEl.style.display = 'block';
+                        
+                        clearTimeout(strikeAnimationData.strikeMessageTimeout);
+                        strikeAnimationData.strikeMessageTimeout = setTimeout(() => {
+                            strikeMessageEl.style.display = 'none';
+                        }, 1500);
+
+                        if (strikeAnimationData.targetsHit >= strikeAnimationData.totalTargets) {
+                            strikeAnimationData.phase = 'all_cleared';
+                        } else {
+                            // Potentially launch next wave if conditions met
+                             if (strikeAnimationData.jetsLaunched < strikeAnimationData.totalTargets && jets.length < 3) {
+                                strikeAnimationData.phase = 'jets_launching'; // Go back to launching
+                            }
+                        }
+                    }
+                }
+                 if (jets.length === 0 && strikeAnimationData.targetsHit < strikeAnimationData.totalTargets && strikeAnimationData.jetsLaunched < strikeAnimationData.totalTargets) {
+                    strikeAnimationData.phase = 'jets_launching'; // If all current jets are gone but more targets/jets remain
+                }
+            }
+
+            if (strikeAnimationData.phase === 'all_cleared') {
+                strikeMessageEl.textContent = "All Targets Eliminated! Mission Success!";
+                strikeMessageEl.style.display = 'block';
+                clearTimeout(strikeAnimationData.strikeMessageTimeout); // Keep final message
+                 setTimeout(() => {
+                    strikeMessageEl.style.display = 'none';
+                    nextButton.disabled = false;
+                    nextButton.textContent = "View Aftermath";
+                }, 2500);
+                strikeAnimationData.phase = 'idle'; // Prevent re-triggering
+            }
+        }
+
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+            
+            const currentSceneData = scenesData[currentSceneIndex];
+            if (currentSceneData && currentSceneData.animate) {
+                currentSceneData.animate(time);
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
