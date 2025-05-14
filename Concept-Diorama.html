@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Aethelburg Labyrinth - Concept Diorama</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #030308; color: #fff; font-family: monospace; }
+        #info { position: absolute; top: 10px; width: 100%; text-align: center; z-index: 100; display:block; padding: 5px; }
+        /* Basic styling for embedded commentary in the HTML itself if needed, though JS comments are primary */
+    </style>
+</head>
+<body>
+    <div id="info">
+        Aethelburg Labyrinth: Echoes of the Void - Symbolic Diorama<br/>
+        (Drag to orbit)
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Core Three.js components
+        let scene, camera, renderer;
+        // Symbolic objects
+        let labyrinthRepresentation, conduitRepresentation, playerRepresentation;
+
+        init();
+        animate();
+
+        function init() {
+            // ---------------------------------------------------------------------
+            // SCENE SETUP
+            // ---------------------------------------------------------------------
+            // The scene will contain all our objects, lights, and cameras.
+            // It represents the vast, dark expanse where the Aethelburg Labyrinth exists.
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x030308, 10, 70); // Adding fog for depth and mystery
+
+            // ---------------------------------------------------------------------
+            // CAMERA SETUP
+            // ---------------------------------------------------------------------
+            // PerspectiveCamera(FOV, aspect ratio, near clip, far clip)
+            // FOV: 75 - A wide field of view, suitable for immersive experiences.
+            // Aspect Ratio: window.innerWidth / window.innerHeight - Dynamically adapts to browser window size.
+            // Near/Far Clip: 0.1 / 1000 - Objects closer than 0.1 or further than 1000 units won't be rendered.
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            // Initial camera position, looking towards the origin.
+            // Positioned to give an overview of the symbolic elements.
+            camera.position.set(5, 7, 10);
+            camera.lookAt(scene.position); // Ensure camera is looking at the center of the scene.
+
+            // ---------------------------------------------------------------------
+            // RENDERER SETUP
+            // ---------------------------------------------------------------------
+            // WebGLRenderer is used to draw the scene using WebGL.
+            renderer = new THREE.WebGLRenderer({ antialias: true }); // Antialias smooths edges.
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            // Sets the pixel ratio for sharper images on high DPI displays.
+            renderer.setPixelRatio(window.devicePixelRatio);
+            // Appending the renderer's DOM element (a canvas) to the HTML body.
+            document.body.appendChild(renderer.domElement);
+
+            // ---------------------------------------------------------------------
+            // ORBIT CONTROLS
+            // ---------------------------------------------------------------------
+            // Allows camera manipulation (orbit, zoom, pan) using the mouse.
+            // Makes it easy to inspect the symbolic scene.
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // Adds inertia to camera movement for a smoother feel.
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 5;    // How close the camera can get
+            controls.maxDistance = 50;  // How far the camera can zoom out
+            // controls.target.set(0, 2, 0); // Optional: if you want controls to orbit around a specific point not (0,0,0)
+
+            // ---------------------------------------------------------------------
+            // LIGHTING
+            // ---------------------------------------------------------------------
+            // AmbientLight: Illuminates all objects in the scene equally.
+            // Color: 0x606080 - A dim, cool ambient light to suggest the vastness of space/void.
+            const ambientLight = new THREE.AmbientLight(0x606080, 0.5);
+            scene.add(ambientLight);
+
+            // DirectionalLight: Emits light in a specific direction, like the sun.
+            // Color: 0xffffff - White light.
+            // Intensity: 0.8
+            // This will cast shadows and highlight the forms of our symbolic objects.
+            const directionalLight = new THREE.DirectionalLight(0xffeedd, 1);
+            directionalLight.position.set(5, 10, 7.5); // Positioned to cast interesting shadows.
+            // directionalLight.castShadow = true; // FUTURE: Enable shadows for more depth
+            scene.add(directionalLight);
+
+            // PointLight (symbolic of player's personal illumination or Conduit glow)
+            // const pointLight = new THREE.PointLight(0xffaa44, 1, 50);
+            // pointLight.position.set(0, 3, 0); // Position it near the conduit or player
+            // scene.add(pointLight);
+            // FUTURE: This light could follow the playerRepresentation or emanate strongly from conduitRepresentation.
+
+            // ---------------------------------------------------------------------
+            // SYMBOLIC OBJECTS
+            // ---------------------------------------------------------------------
+
+            // 1. The Aethelburg Labyrinth Representation
+            // A large, complex, somewhat unsettling form. A TorusKnot is used here for its intricate, looping nature.
+            // It represents the vast, incomprehensible, and decaying ancient structure.
+            const labyrinthGeometry = new THREE.TorusKnotGeometry(10, 1.5, 150, 20, 2, 3); // Larger, more complex
+            // Material: A dark, somewhat metallic, wireframe look to suggest advanced but partially dematerialized tech.
+            const labyrinthMaterial = new THREE.MeshStandardMaterial({
+                color: 0x334466, // Deep blue/purple, color of the void or ancient metal
+                metalness: 0.7,
+                roughness: 0.4,
+                wireframe: true, // Emphasizes structure and complexity, and the "glitching" nature
+                opacity: 0.6,   // Semi-transparent to hint at its ethereal, phasing nature
+                transparent: true
+            });
+            labyrinthRepresentation = new THREE.Mesh(labyrinthGeometry, labyrinthMaterial);
+            labyrinthRepresentation.position.set(0, 2, 0); // Centered, slightly elevated
+            // COMMENT: This TorusKnot represents the core, incomprehensible structure of the Aethelburg Labyrinth.
+            // Its wireframe and transparency symbolize its partial phasing and decaying state.
+            // FUTURE: Could have custom shaders for glitch effects or flowing energy patterns along its wires.
+            scene.add(labyrinthRepresentation);
+
+            // 2. The Keystone Conduit Representation
+            // A smaller, brightly glowing sphere, representing a point of energy or information.
+            const conduitGeometry = new THREE.IcosahedronGeometry(0.8, 0); // Icosahedron for a crystalline/energy core look
+            // Material: Emissive material to make it glow, signifying its importance and energy.
+            const conduitMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffff00,       // Bright yellow, as in the original GDD
+                emissive: 0xffff99,    // Emits light
+                emissiveIntensity: 2,
+                roughness: 0.2,
+                metalness: 0.1
+                // FUTURE: Add a subtle pulsating effect by animating emissiveIntensity or scale.
+            });
+            conduitRepresentation = new THREE.Mesh(conduitGeometry, conduitMaterial);
+            // Position it as if embedded within or close to a part of the Labyrinth.
+            // Let's place it slightly offset, as if the player needs to navigate to it.
+            conduitRepresentation.position.set(3, 2.5, -2);
+            // COMMENT: This glowing Icosahedron is a Keystone Conduit. Its brightness contrasts with the dark Labyrinth,
+            // symbolizing hope, energy, or a critical objective.
+            // FUTURE: Could have particle effects emitting from it or require an "attunement" animation.
+            scene.add(conduitRepresentation);
+
+            // 3. The Player (Rift-Weaver) Representation
+            // A small, distinct capsule or elongated shape, representing the player's presence.
+            const playerGeometry = new THREE.CapsuleGeometry(0.3, 0.6, 4, 10); // Capsule is more "avatar-like" than a cube
+            // Material: A contrasting color, perhaps with some emission to show it's an active entity.
+            const playerMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff6600,       // A distinct orange/red
+                emissive: 0xff6600,
+                emissiveIntensity: 0.5,
+                roughness: 0.5,
+                metalness: 0.3
+            });
+            playerRepresentation = new THREE.Mesh(playerGeometry, playerMaterial);
+            // Positioned as if navigating towards the Conduit.
+            playerRepresentation.position.set(-4, 1, 3);
+            playerRepresentation.rotation.y = Math.PI / 4; // Slightly angled
+            // COMMENT: This capsule represents the Rift-Weaver. It's small relative to the Labyrinth,
+            // emphasizing the scale and challenge. Its orientation suggests movement/intent.
+            // FUTURE: Implement actual player controls (WASD) to move this. Add trail effects in 'Echo' state.
+            scene.add(playerRepresentation);
+
+            // Helper: Axes Helper (for development, shows X, Y, Z axes)
+            // const axesHelper = new THREE.AxesHelper(5);
+            // scene.add(axesHelper);
+
+            // Event listener for window resize to adjust camera and renderer.
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function onWindowResize() {
+            // Update camera aspect ratio.
+            camera.aspect = window.innerWidth / window.innerHeight;
+            // Update camera's projection matrix.
+            camera.updateProjectionMatrix();
+            // Update renderer size.
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            // Request the next frame to create a loop.
+            requestAnimationFrame(animate);
+
+            // Symbolic Animation:
+            // Slowly rotate the Labyrinth representation to give a sense of its immense, slow, cosmic movement or instability.
+            if (labyrinthRepresentation) {
+                labyrinthRepresentation.rotation.x += 0.0005;
+                labyrinthRepresentation.rotation.y += 0.0007;
+            }
+
+            // Optional: Make the Conduit pulsate slightly (by scaling or changing emissive intensity)
+            if (conduitRepresentation) {
+                 const pulseSpeed = Date.now() * 0.0025;
+                 conduitRepresentation.scale.setScalar(1 + Math.sin(pulseSpeed) * 0.05);
+            }
+
+
+            // Update controls if damping is enabled.
+            // IMPORTANT: OrbitControls must be updated in the animation loop if damping or auto-rotation is used.
+            if (renderer.xr.isPresenting === false) { // Ensure controls are updated only when not in XR
+                 const controls = renderer.domElement.previousSibling && renderer.domElement.previousSibling.__orbitControls;
+                 if (controls) controls.update(); // Hacky way to get controls, better to store globally.
+            }
+            // A better way to get controls if you stored it globally:
+            // if (orbitControls) orbitControls.update();
+
+
+            // Render the scene from the perspective of the camera.
+            renderer.render(scene, camera);
+
+            // FUTURE:
+            // - Implement player movement logic here.
+            // - Implement collision detection.
+            // - Update game state (score, timer, etc.).
+            // - Trigger dynamic Labyrinth events.
+        }
+
+        // Make controls accessible for the animate loop in a cleaner way:
+        // This is a bit of a workaround as OrbitControls doesn't always attach itself directly to the renderer
+        // in a way that's easily retrievable without making it a global variable or passing it around.
+        // For this self-contained example, we'll try to retrieve it if it's attached to the renderer's domElement.
+        // A more robust solution in a larger app would be to instantiate controls and pass it to animate() or make it module-scoped.
+        // The current animate() function tries a hacky way. For better practice, ensure 'controls' is accessible in animate().
+        // For example, make 'controls' a global variable initialized in init().
+
+    </script>
+</body>
+</html>
