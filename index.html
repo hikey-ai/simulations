@@ -1,0 +1,550 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Khelio - Create Game Simulations</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/babel-standalone@6.26.0/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', sans-serif; }
+    .animate-fade-in { animation: fadeIn 1s ease-in; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-slide-in { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .gradient-btn {
+      background: linear-gradient(to right, #E61E4D, #D70466);
+      transition: transform 0.2s;
+    }
+    .gradient-btn:hover { transform: scale(1.05); }
+    .card { transition: transform 0.2s, box-shadow 0.2s; }
+    .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(255, 255, 255, 0.1); }
+    .game-type-card { transition: background-color 0.2s; }
+    .game-type-card:hover { background-color: #4B5563; }
+    .nav-icon { transition: color 0.2s; }
+    .nav-icon:hover { color: #14B8A6; }
+  </style>
+</head>
+<body class="bg-gray-900">
+  <div id="root"></div>
+  <script type="text/babel">
+    const App = () => {
+      const [activeTab, setActiveTab] = React.useState('discovery-home');
+      const [isSignInOpen, setIsSignInOpen] = React.useState(false);
+      const [isOnboardingOpen, setIsOnboardingOpen] = React.useState(true);
+      const [step, setStep] = React.useState(1);
+      const [gameDescription, setGameDescription] = React.useState({
+        type: '',
+        mechanics: '',
+        style: ''
+      });
+      const [isSignedIn, setIsSignedIn] = React.useState(false); // Mock signed-in state
+
+      const handleInputChange = (name, value) => {
+        setGameDescription({ ...gameDescription, [name]: value });
+      };
+
+      const handleNext = () => {
+        if (step < 3) setStep(step + 1);
+        else handleGenerate();
+      };
+
+      const handleBack = () => {
+        if (step > 1) setStep(step - 1);
+      };
+
+      const handleGenerate = () => {
+        if (!isSignedIn) {
+          setIsSignInOpen(true);
+        } else {
+          alert('Generating simulation for: ' + JSON.stringify(gameDescription));
+        }
+      };
+
+      const handleSignIn = () => {
+        setIsSignedIn(true);
+        setIsSignInOpen(false);
+      };
+
+      const gameTypes = [
+        { id: 'platformer', name: 'Platformer', desc: 'Jump and run through levels.', icon: '🕹️' },
+        { id: 'puzzle', name: 'Puzzle', desc: 'Solve challenging brain teasers.', icon: '🧩' },
+        { id: 'adventure', name: 'Adventure', desc: 'Explore rich, story-driven worlds.', icon: '🌍' },
+        { id: 'arcade', name: 'Arcade', desc: 'Fast-paced, action-packed fun.', icon: '🎮' }
+      ];
+
+      const visualStyles = [
+        { id: 'pixel', name: 'Pixel Art', img: 'https://via.placeholder.com/100x60?text=Pixel' },
+        { id: '3d', name: '3D', img: 'https://via.placeholder.com/100x60?text=3D' },
+        { id: 'minimalist', name: 'Minimalist', img: 'https://via.placeholder.com/100x60?text=Minimalist' }
+      ];
+
+      const simulations = [
+        { title: 'Star Jumper', desc: 'Leap across platforms to collect stars.', img: 'https://via.placeholder.com/400x300?text=Star+Jumper', genre: 'Platformer', style: 'Pixel Art' },
+        { title: 'Mystic Puzzle', desc: 'Solve enchanting puzzles to progress.', img: 'https://via.placeholder.com/400x300?text=Mystic+Puzzle', genre: 'Puzzle', style: 'Minimalist' },
+        { title: 'Cosmic Voyage', desc: 'Navigate a spaceship through obstacles.', img: 'https://via.placeholder.com/400x300?text=Cosmic+Voyage', genre: 'Arcade', style: '3D' }
+      ];
+
+      return (
+        <div className="min-h-screen bg-gray-900 text-gray-100">
+          {/* Desktop Navigation */}
+          <header className="bg-gray-950 shadow-sm py-4 sticky top-0 z-10 hidden md:block">
+            <div className="container mx-auto px-4 flex justify-between items-center">
+              <h1 className="text-2xl font-bold text-white">Khelio</h1>
+              <nav className="flex space-x-4">
+                {[
+                  { id: 'discovery-home', label: 'Home', icon: '🏠' },
+                  { id: 'discovery', label: 'Discovery', icon: '🔍' },
+                  { id: 'create', label: 'Create', icon: '✨' },
+                  { id: 'profile', label: 'Profile', icon: '👤' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    className={`flex items-center space-x-1 px-4 py-2 rounded-full ${activeTab === tab.id ? 'bg-teal-500 text-white' : 'text-gray-300 hover:text-teal-500'}`}
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    <span className="nav-icon">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </header>
+
+          {/* Mobile Navigation */}
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-950 shadow-t py-2 z-10">
+            <div className="container mx-auto px-4 flex justify-around">
+              {[
+                { id: 'discovery-home', label: 'Home', icon: '🏠' },
+                { id: 'discovery', label: 'Discovery', icon: '🔍' },
+                { id: 'create', label: 'Create', icon: '✨' },
+                { id: 'profile', label: 'Profile', icon: '👤' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`flex flex-col items-center px-2 py-1 ${activeTab === tab.id ? 'text-teal-500' : 'text-gray-300'}`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  <span className="nav-icon text-xl">{tab.icon}</span>
+                  <span className="text-xs">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          {/* Discovery Home Tab */}
+          {activeTab === 'discovery-home' && (
+            <div className="animate-fade-in">
+              {/* Hero Section */}
+              <section className="bg-gray-800 py-20">
+                <div className="container mx-auto px-4 text-center">
+                  <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                    Turn Your Game Ideas into Reality
+                  </h2>
+                  <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+                    Describe your dream game, and our AI creates an interactive simulation in moments.
+                  </p>
+                  <button
+                    className="gradient-btn text-white px-8 py-4 rounded-full text-lg font-medium"
+                    onClick={() => setActiveTab('create')}
+                  >
+                    Start Creating
+                  </button>
+                </div>
+              </section>
+
+              {/* Featured Creations */}
+              <section className="py-16">
+                <div className="container mx-auto px-4">
+                  <h3 className="text-3xl font-bold text-white text-center mb-12">
+                    Featured Creations
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {simulations.map((game, index) => (
+                      <div key={index} className="card bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-700">
+                        <img src={game.img} alt={game.title} className="w-full h-48 object-cover rounded-t-2xl" />
+                        <div className="p-6">
+                          <h4 className="text-xl font-medium text-white">{game.title}</h4>
+                          <p className="text-gray-400 mt-2">{game.desc}</p>
+                          <button className="mt-4 gradient-btn text-white px-4 py-2 rounded-full hover:bg-red-600">
+                            Try Demo
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* Recent Creations (Signed-In Only) */}
+              {isSignedIn && (
+                <section className="py-16 bg-gray-800">
+                  <div className="container mx-auto px-4">
+                    <h3 className="text-3xl font-bold text-white text-center mb-12">
+                      Your Recent Creations
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {simulations.slice(0, 2).map((game, index) => (
+                        <div key={index} className="card bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-700">
+                          <img src={game.img} alt={game.title} className="w-full h-48 object-cover rounded-t-2xl" />
+                          <div className="p-6">
+                            <h4 className="text-xl font-medium text-white">{game.title}</h4>
+                            <p className="text-gray-400 mt-2">{game.desc}</p>
+                            <button className="mt-4 gradient-btn text-white px-4 py-2 rounded-full hover:bg-red-600">
+                              View
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+
+          {/* Discovery Tab */}
+          {activeTab === 'discovery' && (
+            <section className="py-16 animate-fade-in">
+              <div className="container mx-auto px-4">
+                <h3 className="text-3xl font-bold text-white text-center mb-12">
+                  Explore Community Creations
+                </h3>
+                {/* Filters */}
+                <div className="flex flex-wrap gap-2 mb-8 justify-center">
+                  {['All', 'Platformer', 'Puzzle', 'Arcade', 'Pixel Art', '3D'].map((filter) => (
+                    <button
+                      key={filter}
+                      className="px-4 py-2 bg-gray-700 text-gray-300 rounded-full hover:bg-teal-500 hover:text-white"
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
+                {/* Simulation Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {simulations.concat(simulations).map((game, index) => (
+                    <div key={index} className="card bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-700">
+                      <img src={game.img} alt={game.title} className="w-full h-48 object-cover rounded-t-2xl" />
+                      <div className="p-6">
+                        <h4 className="text-xl font-medium text-white">{game.title}</h4>
+                        <p className="text-gray-400 mt-2">{game.desc}</p>
+                        <div className="flex space-x-2 mt-4">
+                          <button className="gradient-btn text-white px-4 py-2 rounded-full hover:bg-red-600">
+                            Try Demo
+                          </button>
+                          <button className="border border-gray-600 text-gray-300 px-4 py-2 rounded-full hover:bg-gray-700">
+                            ❤️ Like
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Create Tab */}
+          {activeTab === 'create' && (
+            <section className="py-16 bg-gray-800 animate-fade-in">
+              <div className="container mx-auto px-4">
+                <h3 className="text-3xl font-bold text-white text-center mb-12">
+                  Design Your Game Simulation
+                </h3>
+                <div className="max-w-5xl mx-auto bg-gray-800 rounded-2xl shadow-md border border-gray-700 flex">
+                  {/* Wizard Steps */}
+                  <div className="w-full md:w-2/3 p-8 animate-slide-in">
+                    {/* Progress Bar */}
+                    <div className="flex justify-between mb-8">
+                      {[1, 2, 3].map((s) => (
+                        <div key={s} className="flex-1 text-center">
+                          <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center ${step >= s ? 'bg-teal-500' : 'bg-gray-600'}`}>
+                            {s}
+                          </div>
+                          <p className="text-sm text-gray-300 mt-2">
+                            {s === 1 ? 'Game Type' : s === 2 ? 'Mechanics' : 'Style'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Step 1: Game Type */}
+                    {step === 1 && (
+                      <div>
+                        <h4 className="text-xl font-medium text-white mb-4">Choose Your Game Type</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          {gameTypes.map((type) => (
+                            <div
+                              key={type.id}
+                              className={`game-type-card p-4 rounded-xl border ${gameDescription.type === type.id ? 'border-teal-500 bg-gray-700' : 'border-gray-600'} cursor-pointer`}
+                              onClick={() => handleInputChange('type', type.id)}
+                            >
+                              <span className="text-2xl">{type.icon}</span>
+                              <h5 className="text-gray-100 font-medium mt-2">{type.name}</h5>
+                              <p className="text-gray-400 text-sm">{type.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 2: Mechanics */}
+                    {step === 2 && (
+                      <div>
+                        <h4 className="text-xl font-medium text-white mb-4">Define Core Mechanics</h4>
+                        <textarea
+                          value={gameDescription.mechanics}
+                          onChange={(e) => handleInputChange('mechanics', e.target.value)}
+                          className="w-full p-4 bg-gray-900 text-gray-100 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          rows="6"
+                          placeholder="Example: Move with arrow keys, collect coins to score points, avoid obstacles."
+                        ></textarea>
+                        <p className="text-gray-400 text-sm mt-2">Tip: Be specific about controls, objectives, and interactions.</p>
+                      </div>
+                    )}
+
+                    {/* Step 3: Visual Style */}
+                    {step === 3 && (
+                      <div>
+                        <h4 className="text-xl font-medium text-white mb-4">Select Visual Style</h4>
+                        <div className="grid grid-cols-3 gap-4">
+                          {visualStyles.map((style) => (
+                            <div
+                              key={style.id}
+                              className={`p-4 rounded-xl border ${gameDescription.style === style.id ? 'border-teal-500 bg-gray-700' : 'border-gray-600'} cursor-pointer`}
+                              onClick={() => handleInputChange('style', style.id)}
+                            >
+                              <img src={style.img} alt={style.name} className="w-full h-16 object-cover rounded-lg mb-2" />
+                              <h5 className="text-gray-100 font-medium">{style.name}</h5>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Navigation Buttons */}
+                    <div className="flex justify-between mt-8">
+                      <button
+                        className={`px-6 py-3 rounded-full ${step === 1 ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                        onClick={handleBack}
+                        disabled={step === 1}
+                      >
+                        Back
+                      </button>
+                      <button
+                        className="gradient-btn text-white px-6 py-3 rounded-full font-medium"
+                        onClick={handleNext}
+                      >
+                        {step === 3 ? 'Generate Simulation' : 'Next'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Preview Panel */}
+                  <div className="hidden md:block w-1/3 p-8 bg-gray-900 border-l border-gray-700">
+                    <h4 className="text-xl font-medium text-white mb-4">Preview</h4>
+                    <div className="bg-gray-800 rounded-xl p-4 min-h-[300px] flex items-center justify-center">
+                      {gameDescription.type || gameDescription.mechanics || gameDescription.style ? (
+                        <div className="text-gray-300 text-center">
+                          <p><strong>Type:</strong> {gameDescription.type || 'Not selected'}</p>
+                          <p><strong>Mechanics:</strong> {gameDescription.mechanics || 'Not defined'}</p>
+                          <p><strong>Style:</strong> {gameDescription.style || 'Not selected'}</p>
+                          <p className="text-sm text-gray-400 mt-2">This is a mock preview. Your simulation will be generated after signing in.</p>
+                        </div>
+                      ) : (
+                        <p className="text-gray-400">Select options to see a preview.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Profile Tab */}
+          {activeTab === 'profile' && (
+            <section className="py-16 animate-fade-in">
+              <div className="container mx-auto px-4">
+                {!isSignedIn ? (
+                  <div className="text-center">
+                    <h3 className="text-3xl font-bold text-white mb-8">
+                      Sign In to View Your Profile
+                    </h3>
+                    <button
+                      className="gradient-btn text-white px-8 py-4 rounded-full text-lg font-medium"
+                      onClick={() => setIsSignInOpen(true)}
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-3xl font-bold text-white text-center mb-12">
+                      Your Profile
+                    </h3>
+                    <div className="max-w-3xl mx-auto">
+                      {/* User Info */}
+                      <div className="bg-gray-800 rounded-2xl p-6 mb-8 border border-gray-700">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center text-2xl">
+                            👤
+                          </div>
+                          <div>
+                            <h4 className="text-xl font-medium text-white">User Name</h4>
+                            <p className="text-gray-400">Joined May 2025</p>
+                          </div>
+                        </div>
+                        <button className="mt-4 border border-gray-600 text-gray-300 px-4 py-2 rounded-full hover:bg-gray-700">
+                          Sign Out
+                        </button>
+                      </div>
+
+                      {/* My Creations */}
+                      <h4 className="text-2xl font-medium text-white mb-4">My Creations</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        {simulations.slice(0, 2).map((game, index) => (
+                          <div key={index} className="card bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-700">
+                            <img src={game.img} alt={game.title} className="w-full h-32 object-cover rounded-t-2xl" />
+                            <div className="p-4">
+                              <h5 className="text-lg font-medium text-white">{game.title}</h5>
+                              <p className="text-gray-400 text-sm">{game.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Saved Simulations */}
+                      <h4 className="text-2xl font-medium text-white mb-4">Saved Simulations</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {simulations.slice(1, 3).map((game, index) => (
+                          <div key={index} className="card bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-700">
+                            <img src={game.img} alt={game.title} className="w-full h-32 object-cover rounded-t-2xl" />
+                            <div className="p-4">
+                              <h5 className="text-lg font-medium text-white">{game.title}</h5>
+                              <p className="text-gray-400 text-sm">{game.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Onboarding Modal */}
+          {isOnboardingOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-gray-800 p-8 rounded-2xl max-w-md w-full animate-fade-in border border-gray-700">
+                <h3 className="text-2xl font-bold text-white mb-4">Welcome to Khelio!</h3>
+                <p className="text-gray-300 mb-6">
+                  Get started with Khelio:
+                  <ul className="list-disc ml-6 mt-2">
+                    <li><strong>Home</strong>: Discover featured and recent creations.</li>
+                    <li><strong>Discovery</strong>: Browse community simulations.</li>
+                    <li><strong>Create</strong>: Design your game in three easy steps.</li>
+                    <li><strong>Profile</strong>: Manage your creations and saved simulations.</li>
+                  </ul>
+                </p>
+                <button
+                  className="w-full gradient-btn text-white px-6 py-3 rounded-full font-medium"
+                  onClick={() => setIsOnboardingOpen(false)}
+                >
+                  Get Started
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sign-In Modal */}
+          {isSignInOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-gray-800 p-8 rounded-2xl max-w-md w-full animate-fade-in border border-gray-700">
+                <h3 className="text-2xl font-bold text-white mb-6">Sign In to Khelio</h3>
+                <p className="text-gray-400 mb-6">Sign in to create and save your game simulations.</p>
+                <button
+                  className="w-full border border-gray-600 text-gray-300 px-6 py-3 rounded-full mb-4 hover:bg-gray-700"
+                  onClick={handleSignIn}
+                >
+                  Sign in with Google
+                </button>
+                <button
+                  className="w-full border border-gray-600 text-gray-300 px-6 py-3 rounded-full mb-4 hover:bg-gray-700"
+                  onClick={handleSignIn}
+                >
+                  Sign in with GitHub
+                </button>
+                <button
+                  className="w-full bg-gray-700 text-gray-300 px-6 py-3 rounded-full hover:bg-gray-600"
+                  onClick={() => setIsSignInOpen(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <footer className="bg-gray-950 text-gray-300 py-6">
+            <div className="container mx-auto px-4 text-center">
+              <p>© 2025 Khelio. All rights reserved.</p>
+            </div>
+          </footer>
+        </div>
+      );
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
